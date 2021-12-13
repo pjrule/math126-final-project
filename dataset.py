@@ -20,7 +20,8 @@ ENSEMBLE_CATEGORIES = {
               'Clarinet-Cello-Piano Trio', 'Horn Piano Trio')
 }
 
-# normalize to major key
+# Normalize to major key, accounting for variation in naming schemes
+# within the MusicNet metadata.
 CIRCLE_OF_FIFTHS = {
     'A major': 'A',
     'B-flat major': 'Bb',
@@ -63,7 +64,7 @@ def audio_fingerprint(audio: np.ndarray, sample_interval: int,
  
   We assume that the audio is sampled at roughly 40 kHz (44.1 kHz and
   48 kHz are common), such that returning the first quarter of the spectrogram
-  truncates around 5 kHz.
+  truncates it around 5 kHz.
   """
     n_samples = audio.shape[0] // sample_interval
     fingerprint = np.empty((n_samples, window_size // 8))
@@ -149,14 +150,14 @@ class MusicNet:
         return recordings, np.array(recording_label_ids)
 
     def chunks_by_column(self, col: str) -> Tuple[np.ndarray, np.ndarray]:
-        """Returns audio fingerpritn chunks grouped by metadata column."""
+        """Returns audio fingerprint chunks grouped by metadata column."""
         chunks = []
         chunk_label_ids = []
         for (fingerprints, label_id) in zip(*self.recordings_by_column(col)):
             recording_chunks = recording_to_chunks(fingerprints,
                                                    self.intervals_per_chunk)
-            chunks.append(recording_chunks)
-            chunk_label_ids += [label_id] * recording_chunks.shape[0]
+            chunks += recording_chunks
+            chunk_label_ids += [label_id] * len(recording_chunks)
         return np.array(chunks), np.array(chunk_label_ids)
 
     def _preprocess_key(self):
@@ -207,6 +208,7 @@ class MusicNet:
         if self.fingerprints_cache_path:
             try:
                 self.fingerprints_by_id = np.load(self.fingerprints_cache_path)
+                logging.info('Loaded fingerprints from cache.')
             except FileNotFoundError:
                 self.fingerprints_by_id = self._generate_fingerprints()
                 np.savez_compressed(self.fingerprints_cache_path,
