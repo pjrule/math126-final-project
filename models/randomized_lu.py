@@ -1,9 +1,7 @@
+"""Randomized LU decomposition."""
 import numpy as np
-import matplotlib.pyplot as plt
 import scipy.linalg as la
 from typing import Tuple
-from time import time
-from numpy.linalg import inv
 
 PQLU = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
