@@ -126,7 +126,11 @@ class MusicNet:
         self.sample_interval = int(self.sample_interval_sec * self.fs)
         self.intervals_per_chunk = int(self.chunk_size_sec /
                                        self.sample_interval_sec)
-        self.dataset = h5py.File(self.dataset_path, 'r')
+        if self.dataset_path:
+            self.dataset = h5py.File(self.dataset_path, 'r')
+        else:
+            logging.info('No raw dataset path specified. Using cached fingerprints.')
+            self.dataset = None
         self.meta_df = pd.read_csv(self.dataset_meta_path).set_index('id')
         self._preprocess_key()
         self._preprocess_ensemble()
