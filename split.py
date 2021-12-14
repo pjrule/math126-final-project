@@ -5,9 +5,10 @@ from sklearn.model_selection import train_test_split as sk_split
 from dataset import recording_to_chunks, chunks_to_samples, MusicNet
 
 
-def train_test_split(dataset: MusicNet, column: str, split_by: str,
-                     test_split: float,
-                     random_state: int) -> Tuple[np.ndarray, np.ndarray]:
+def train_test_split(
+    dataset: MusicNet, column: str, split_by: str, test_split: float,
+    random_state: int
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Splits the MusicNet dataset into training and test sets.
 
     We support three modes for splitting the dataset.
@@ -36,7 +37,8 @@ def train_test_split(dataset: MusicNet, column: str, split_by: str,
         random_state: Random seed for splitting and shuffling. 
 
     Returns:
-        A tuple containing a matrix of fingerprints and associated labels.
+        A tuple containing a matrix of fingerprints and associated labels
+        in the order (training data, training labels, test data, test labels).
     """
     shuffle_rng = np.random.default_rng(random_state)
     if split_by == 'chunk':
