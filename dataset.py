@@ -129,7 +129,8 @@ class MusicNet:
         if self.dataset_path:
             self.dataset = h5py.File(self.dataset_path, 'r')
         else:
-            logging.info('No raw dataset path specified. Using cached fingerprints.')
+            logging.info(
+                'No raw dataset path specified. Using cached fingerprints.')
             self.dataset = None
         self.meta_df = pd.read_csv(self.dataset_meta_path).set_index('id')
         self._preprocess_key()

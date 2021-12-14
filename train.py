@@ -9,6 +9,8 @@ from pathlib import Path
 from sklearn.svm import LinearSVC
 from dataset import MusicNet
 from split import train_test_split
+from models import SVDClassifier, RandomizedLUClassifier
+from time import time
 
 
 def init_xgboost(random_state: int, verbosity: int) -> xgb.XGBClassifier:
@@ -18,6 +20,7 @@ def init_xgboost(random_state: int, verbosity: int) -> xgb.XGBClassifier:
                              objective='multi:softprob',
                              eval_metric='auc',
                              subsample=0.5,
+                             max_depth=3,   
                              verbosity=verbosity)
 
 
@@ -28,20 +31,22 @@ def init_svc(random_state: int, verbosity: int) -> LinearSVC:
                      max_iter=5000)
 
 
-def init_ksvd(random_state: int, verbosity: int) -> None:
-    """Initializes a KSVD model for audio classification."""
-    raise NotImplementedError('not implemented yet! :(')
+def init_svd(random_state: int, verbosity: int) -> None:
+    """Initializes a PCA model for audio classification."""
+    return SVDClassifier(k=32, random_state=random_state, verbosity=verbosity)
 
 
 def init_lu(random_state: int, verbosity: int) -> None:
     """Initializes a randomized LU model for audio classification."""
-    raise NotImplementedError('not implemented yet! :(')
+    return RandomizedLUClassifier(k=32,
+                                  random_state=random_state,
+                                  verbosity=verbosity)
 
 
 MODELS = {
     'xgboost': init_xgboost,
     'svc': init_svc,
-    'ksvd': init_ksvd,
+    'svd': init_svd,
     'lu': init_lu
 }
 
@@ -97,16 +102,23 @@ def main(dataset_path: Optional[str], dataset_meta_path: str,
         init_fn = MODELS[model]
     except KeyError:
         raise ValueError(f'Unsupported model type "{model}.')
-    model = init_fn(random_state, verbose)
+    classifier = init_fn(random_state, verbose)
 
-    logging.info('Fitting model...')
+    logging.info('Fitting classifier...')
     Path(out_path).touch()
+    logging.info('Training classifier "%s" on column "%s".', classifier, column)
+    logging.info('Classifier details:', model)
+    tic = time()
     if train_subsample_size is None:
-        model.fit(samples_train, sample_labels_train)
+        classifier.fit(samples_train, sample_labels_train)
     else:
         # We assume samples are shuffled.
-        model.fit(samples_train[:train_subsample_size],
+        classifier.fit(samples_train[:train_subsample_size],
                   sample_labels_train[:train_subsample_size])
+    logging.info('Trained classifier "%s" on column "%s" in %.2f seconds.',
+        classifier,
+        column,
+        time() - tic) 
     joblib.dump(model, out_path)
 
 

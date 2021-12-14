@@ -5,7 +5,8 @@ from typing import Tuple
 
 PQLU = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
-def randomized_lu(A: np.ndarray, k: int, l: int, seed: int=0) -> PQLU:
+
+def randomized_lu(A: np.ndarray, k: int, l: int, seed: int = 0) -> PQLU:
     """Performs a randomized rank-k LU decomposition of A.
     
     Adapted from Shabat et al. 2013, Algorithm 4.1.
@@ -25,8 +26,8 @@ def randomized_lu(A: np.ndarray, k: int, l: int, seed: int=0) -> PQLU:
     m, n = A.shape
     G = rand.randn(n, l)
 
-    # 2. Y ← AG.    
-    Y = A @ G  
+    # 2. Y ← AG.
+    Y = A @ G
     assert Y.shape == (m, l)
 
     # 3. Apply RRLU decomposition (Theorem 3.1) to Y such that P Y Qy = LyUy.
@@ -36,7 +37,7 @@ def randomized_lu(A: np.ndarray, k: int, l: int, seed: int=0) -> PQLU:
     # applying RRLU. The cases where U grows exponentially are extremely rare...
     P, L_y, U_y = la.lu(Y)
     P = P.T
-    Q_y = np.identity(l) # TODO: replace with RRLU
+    Q_y = np.identity(l)  # TODO: replace with RRLU
     assert P.shape == (m, m)
     assert L_y.shape == (m, l)
     assert U_y.shape == (l, l)
@@ -47,7 +48,7 @@ def randomized_lu(A: np.ndarray, k: int, l: int, seed: int=0) -> PQLU:
     # respectively, such that Ly ← Ly(:, 1 : k) and Uy ← Uy(1 : k, :).
     L_y = L_y[:, :k]
     U_y = U_y[:k, :]
-    assert L_y.shape == (m, k) 
+    assert L_y.shape == (m, k)
     assert U_y.shape == (k, l)
 
     # 5. B ← (L_y †) PA
