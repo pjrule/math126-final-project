@@ -4,7 +4,7 @@ from numpy.linalg import norm
 from sklearn.base import BaseEstimator, ClassifierMixin
 
 
-def dist(self, x: np.ndarray, D: np.ndarray) -> float:
+def dist(x: np.ndarray, D: np.ndarray) -> float:
     """Calculates the distance metric between an input
         vector x and a dictionary D
 
@@ -42,8 +42,8 @@ class DictClassifier(BaseEstimator, ClassifierMixin):
 
         class_predictions = [
             self.classes[np.argmin([
-                self.dist(x, self.dictionary_invs[class_])
+                dist(x, self.dictionary_invs[class_])
                 for class_ in self.classes
             ])] for x in X
         ]
-        return class_predictions
+        return np.array(class_predictions)

@@ -20,5 +20,8 @@ class RandomizedLUClassifier(DictClassifier):
             P, Q, L, U = randomized_lu(X_class.T, self.k, self.k + 5,
                                        self.random_state)
             D = P.T @ L
+            print('X shape:', X_class.shape)
+            print('D shape:', D.shape)
             self.dictionary_invs[class_] = D @ pinv(D)
+            print('Dinv shape:', self.dictionary_invs[class_].shape)
         return self

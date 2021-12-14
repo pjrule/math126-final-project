@@ -10,6 +10,7 @@ from sklearn.svm import LinearSVC
 from dataset import MusicNet
 from split import train_test_split
 from models import SVDClassifier, RandomizedLUClassifier
+from scipy.stats import mode
 from time import time
 
 
@@ -21,7 +22,6 @@ def init_xgboost(random_state: int, verbosity: int) -> xgb.XGBClassifier:
                              eval_metric='auc',
                              subsample=0.5,
                              max_depth=3,
-                             tree_method='gpu_hist',
                              verbosity=verbosity)
 
 
@@ -34,12 +34,12 @@ def init_svc(random_state: int, verbosity: int) -> LinearSVC:
 
 def init_svd(random_state: int, verbosity: int) -> None:
     """Initializes a PCA model for audio classification."""
-    return SVDClassifier(k=32, random_state=random_state, verbosity=verbosity)
+    return SVDClassifier(k=16, random_state=random_state, verbosity=verbosity)
 
 
 def init_lu(random_state: int, verbosity: int) -> None:
     """Initializes a randomized LU model for audio classification."""
-    return RandomizedLUClassifier(k=32,
+    return RandomizedLUClassifier(k=16,
                                   random_state=random_state,
                                   verbosity=verbosity)
 
@@ -50,6 +50,14 @@ MODELS = {
     'svd': init_svd,
     'lu': init_lu
 }
+
+
+def chunk_predict(chunk, model):
+    """Predicts the label for a chunk by voting (soft if possible)."""
+    if hasattr(model, 'predict_proba'):
+        return model.predict_proba(chunk).sum(axis=0).argmax()
+    predictions = model.predict(chunk)
+    return mode(predictions)
 
 
 @click.command()
@@ -76,6 +84,9 @@ MODELS = {
 @click.option('--train-subsample-size',
               type=int,
               help='Absolute number of samples to use for training.')
+@click.option('--test-subsample-size',
+              type=int,
+              help='Absolute number of chunks to use for testing.')
 @click.option('--verbose',
               type=int,
               default=3,
@@ -83,7 +94,8 @@ MODELS = {
 def main(dataset_path: Optional[str], dataset_meta_path: str,
          fingerprints_cache_path: Optional[str], out_path: Optional[str],
          column: str, model: str, split_by: str, random_state: int,
-         test_split: float, train_subsample_size: int, verbose: int):
+         test_split: float, train_subsample_size: int,
+         test_subsample_size: int, verbose: int):
     """Trains an audio classification model."""
     if column not in ('composer', 'key', 'ensemble'):
         raise ValueError(f'Unsupported classification column "{column}.')
@@ -92,7 +104,7 @@ def main(dataset_path: Optional[str], dataset_meta_path: str,
     dataset = MusicNet(dataset_path=dataset_path,
                        dataset_meta_path=dataset_meta_path,
                        fingerprints_cache_path=fingerprints_cache_path)
-    samples_train, _, sample_labels_train, _ = train_test_split(
+    samples_train, chunks_test, sample_labels_train, chunk_labels_test = train_test_split(
         dataset=dataset,
         column=column,
         split_by=split_by,
@@ -107,20 +119,28 @@ def main(dataset_path: Optional[str], dataset_meta_path: str,
 
     logging.info('Fitting classifier...')
     Path(out_path).touch()
-    logging.info('Training classifier "%s" on column "%s".', classifier, column)
-    logging.info('Classifier details:', model)
+    logging.info('Training classifier "%s" on column "%s".', classifier,
+                 column)
     tic = time()
     if train_subsample_size is None:
         classifier.fit(samples_train, sample_labels_train)
     else:
         # We assume samples are shuffled.
         classifier.fit(samples_train[:train_subsample_size],
-                  sample_labels_train[:train_subsample_size])
+                       sample_labels_train[:train_subsample_size])
     logging.info('Trained classifier "%s" on column "%s" in %.2f seconds.',
-        classifier,
-        column,
-        time() - tic) 
-    joblib.dump(model, out_path)
+                 classifier, column,
+                 time() - tic)
+    joblib.dump(classifier, out_path)
+
+    if test_subsample_size is not None:
+        chunks_test = chunks_test[:test_subsample_size]
+        chunk_labels_test = chunk_labels_test[:test_subsample_size]
+
+    predicted_labels = np.array(
+        [chunk_predict(chunk, classifier) for chunk in chunks_test])
+    diff = predicted_labels - chunk_labels_test
+    logging.info('accuracy: %.4f', np.where(diff == 0)[0].size / diff.size)
 
 
 if __name__ == '__main__':

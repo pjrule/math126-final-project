@@ -20,6 +20,6 @@ class SVDClassifier(DictClassifier):
                                        algorithm='randomized',
                                        random_state=self.random_state)
             transformer.fit(X_class)
-            D = transformer.components_
+            D = transformer.components_.T
             self.dictionary_invs[class_] = D @ pinv(D)
         return self

@@ -38,7 +38,7 @@ def train_test_split(
 
     Returns:
         A tuple containing a matrix of fingerprints and associated labels
-        in the order (training data, training labels, test data, test labels).
+        in the order (training samples, training labels, test chunks or samples, test labels).
     """
     shuffle_rng = np.random.default_rng(random_state)
     if split_by == 'chunk':
@@ -50,10 +50,6 @@ def train_test_split(
             random_state=random_state)
         samples_train, sample_labels_train = chunks_to_samples(
             chunks_train, chunk_labels_train, shuffle=True, rng=shuffle_rng)
-        samples_test, sample_labels_test = chunks_to_samples(chunks_test,
-                                                             chunk_labels_test,
-                                                             shuffle=True,
-                                                             rng=shuffle_rng)
     elif split_by == 'recording':
         recordings, recording_labels = dataset.recordings_by_column(column)
         recordings_train, recordings_test, recording_labels_train, recording_labels_test = sk_split(
@@ -81,11 +77,6 @@ def train_test_split(
             np.array(chunk_labels_train),
             shuffle=True,
             rng=shuffle_rng)
-        samples_test, sample_labels_test = chunks_to_samples(
-            np.array(chunks_test),
-            np.array(chunk_labels_test),
-            shuffle=True,
-            rng=shuffle_rng)
     elif split_by == 'sample':
         chunks, chunk_labels = dataset.chunks_by_column(column)
         samples, sample_labels = chunks_to_samples(chunks,
@@ -97,6 +88,7 @@ def train_test_split(
             chunk_labels,
             test_size=test_split,
             random_state=random_state)
+        return samples_train, samples_test, sample_labels_train, sample_labels_test
     else:
         raise ValueError(f'Unsupported splitting mode "{split_by}".')
-    return samples_train, samples_test, sample_labels_train, sample_labels_test
+    return samples_train, chunks_test, sample_labels_train, chunk_labels_test
