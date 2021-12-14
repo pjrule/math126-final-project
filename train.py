@@ -1,4 +1,4 @@
-"""CLI wrapper for audio classification models."""
+"""CLI wrapper for training audio classification models."""
 import logging
 import click
 import joblib
@@ -20,7 +20,8 @@ def init_xgboost(random_state: int, verbosity: int) -> xgb.XGBClassifier:
                              objective='multi:softprob',
                              eval_metric='auc',
                              subsample=0.5,
-                             max_depth=3,   
+                             max_depth=3,
+                             tree_method='gpu_hist',
                              verbosity=verbosity)
 
 
