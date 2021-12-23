@@ -20,6 +20,7 @@ def randomized_lu(A: np.ndarray, k: int, l: int, seed: int = 0) -> PQLU:
     Returns:
         A 4-tuple containing P, Q, L, U."""
     rand = np.random.RandomState(seed)
+    # (Algorithm notes copied verbatim from paper.)
     # 1. Create a matrix G of size n × l whose entries are i.i.d. Gaussian
     # random variables with zero mean and unit standard deviation.
     assert l >= k

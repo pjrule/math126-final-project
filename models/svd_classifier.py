@@ -22,4 +22,5 @@ class SVDClassifier(DictClassifier):
             transformer.fit(X_class)
             D = transformer.components_.T
             self.dictionary_invs[class_] = D @ pinv(D)
+        self._fit_error_model(X, y)
         return self

@@ -6,7 +6,6 @@ import numpy as np
 import xgboost as xgb
 from typing import Optional
 from pathlib import Path
-from sklearn.svm import LinearSVC
 from dataset import MusicNet
 from split import train_test_split
 from models import SVDClassifier, RandomizedLUClassifier
@@ -14,7 +13,8 @@ from scipy.stats import mode
 from time import time
 
 
-def init_xgboost(random_state: int, verbosity: int) -> xgb.XGBClassifier:
+def init_xgboost(random_state: int, verbosity: int, _rank: int,
+                 _error_classifier: str) -> xgb.XGBClassifier:
     """Initializes an XGBoost model for audio classification."""
     return xgb.XGBClassifier(random_state=random_state,
                              use_label_encoder=False,
@@ -25,31 +25,25 @@ def init_xgboost(random_state: int, verbosity: int) -> xgb.XGBClassifier:
                              verbosity=verbosity)
 
 
-def init_svc(random_state: int, verbosity: int) -> LinearSVC:
-    """Initializes a linear SVC model for audio classification."""
-    return LinearSVC(random_state=random_state,
-                     verbose=verbosity,
-                     max_iter=5000)
-
-
-def init_svd(random_state: int, verbosity: int) -> None:
+def init_svd(random_state: int, verbosity: int, rank: int,
+             error_classifier: str) -> None:
     """Initializes a PCA model for audio classification."""
-    return SVDClassifier(k=16, random_state=random_state, verbosity=verbosity)
+    return SVDClassifier(k=rank,
+                         random_state=random_state,
+                         error_classifier=error_classifier,
+                         verbosity=verbosity)
 
 
-def init_lu(random_state: int, verbosity: int) -> None:
+def init_lu(random_state: int, verbosity: int, rank: int,
+            error_classifier: str) -> None:
     """Initializes a randomized LU model for audio classification."""
-    return RandomizedLUClassifier(k=16,
+    return RandomizedLUClassifier(k=rank,
                                   random_state=random_state,
+                                  error_classifier=error_classifier,
                                   verbosity=verbosity)
 
 
-MODELS = {
-    'xgboost': init_xgboost,
-    'svc': init_svc,
-    'svd': init_svd,
-    'lu': init_lu
-}
+MODELS = {'xgboost': init_xgboost, 'svd': init_svd, 'lu': init_lu}
 
 
 def chunk_predict(chunk, model):
@@ -73,6 +67,15 @@ def chunk_predict(chunk, model):
               required=True,
               help='Metadata column to classify on.')
 @click.option('--model', required=True, help='Type of model to train.')
+@click.option(
+    '--error-model',
+    default='xgboost',
+    help='Type of reconstruction error model to train (SVD/randomized LU only).'
+)
+@click.option('--dict-rank',
+              default=8,
+              type=int,
+              help='Rank of class dictionaries (SVD/randomized LU only).')
 @click.option('--split-by', default='recording')
 @click.option('--random-state',
               type=int,
@@ -93,9 +96,9 @@ def chunk_predict(chunk, model):
               help='Verbosity level for training (forwarded to scikit-learn).')
 def main(dataset_path: Optional[str], dataset_meta_path: str,
          fingerprints_cache_path: Optional[str], out_path: Optional[str],
-         column: str, model: str, split_by: str, random_state: int,
-         test_split: float, train_subsample_size: int,
-         test_subsample_size: int, verbose: int):
+         column: str, model: str, error_model: str, dict_rank: int,
+         split_by: str, random_state: int, test_split: float,
+         train_subsample_size: int, test_subsample_size: int, verbose: int):
     """Trains an audio classification model."""
     if column not in ('composer', 'key', 'ensemble'):
         raise ValueError(f'Unsupported classification column "{column}.')
@@ -115,7 +118,7 @@ def main(dataset_path: Optional[str], dataset_meta_path: str,
         init_fn = MODELS[model]
     except KeyError:
         raise ValueError(f'Unsupported model type "{model}.')
-    classifier = init_fn(random_state, verbose)
+    classifier = init_fn(random_state, verbose, dict_rank, error_model)
 
     logging.info('Fitting classifier...')
     Path(out_path).touch()

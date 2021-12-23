@@ -6,8 +6,7 @@ import pandas as pd
 from typing import Optional, Dict, Tuple, List
 from dataclasses import dataclass
 from tqdm import tqdm
-from scipy.fft import fft
-from scipy.signal.windows import hamming
+from scipy.signal import spectrogram
 
 ENSEMBLE_CATEGORIES = {
     'Piano Ensemble': ('Piano Trio', 'Piano Quartet', 'Piano Quintet'),
@@ -57,31 +56,6 @@ CIRCLE_OF_FIFTHS = {
 }
 
 
-def audio_fingerprint(audio: np.ndarray, sample_interval: int,
-                      window_size: int):
-    """Takes a fingerprint of an audio signal by sampling the spectogram at a
-  fixed interval, normalizing each sample, and filtering out high frequencies.
- 
-  We assume that the audio is sampled at roughly 40 kHz (44.1 kHz and
-  48 kHz are common), such that returning the first quarter of the spectrogram
-  truncates it around 5 kHz.
-  """
-    n_samples = audio.shape[0] // sample_interval
-    fingerprint = np.empty((n_samples, window_size // 8))
-    window = hamming(window_size)
-    for sample_idx in range(n_samples):
-        sample = audio[sample_idx * window_size:(sample_idx + 1) * window_size]
-        sample_mag = np.abs(sample)
-        if sample_mag.max() > 0:
-            normalized_sample = sample / sample_mag.max()
-        else:
-            normalized_sample = sample
-        windowed_sample = window * normalized_sample
-        fingerprint[sample_idx] = np.abs(fft(windowed_sample))[:window_size //
-                                                               8]
-    return fingerprint
-
-
 def chunks_to_samples(chunks: np.ndarray,
                       chunk_labels: np.ndarray,
                       shuffle: bool = False,
@@ -100,13 +74,13 @@ def chunks_to_samples(chunks: np.ndarray,
 
 
 def recording_to_chunks(fingerprints: np.ndarray,
-                        intervals_per_chunk: int) -> List[np.ndarray]:
+                        samples_per_chunk: int) -> List[np.ndarray]:
     """Breaks fingerprints of a recording into fixed-length chunks."""
     chunks = []
-    for pos in range(0, len(fingerprints), intervals_per_chunk):
-        chunk = fingerprints[pos:pos + intervals_per_chunk]
+    for pos in range(0, len(fingerprints), samples_per_chunk):
+        chunk = fingerprints[pos:pos + samples_per_chunk]
         # exclude partial chunks (at end)
-        if chunk.shape[0] == intervals_per_chunk:
+        if chunk.shape[0] == samples_per_chunk:
             chunks.append(chunk)
     return chunks
 
@@ -118,14 +92,14 @@ class MusicNet:
     dataset_path: Optional[str]
     fingerprints_cache_path: Optional[str] = None
     fs: int = 44100
-    window_size: int = 1024
-    sample_interval_sec: float = 0.05
+    window_size: int = 2048
+    window_overlap: int = 512
+    n_features: int = 128
     chunk_size_sec: float = 10
 
     def __post_init__(self):
-        self.sample_interval = int(self.sample_interval_sec * self.fs)
-        self.intervals_per_chunk = int(self.chunk_size_sec /
-                                       self.sample_interval_sec)
+        self.samples_per_chunk = int(self.fs * self.chunk_size_sec /
+                                     (self.window_size - self.window_overlap))
         if self.dataset_path:
             self.dataset = h5py.File(self.dataset_path, 'r')
         else:
@@ -137,8 +111,9 @@ class MusicNet:
         self._preprocess_ensemble()
         self._load_fingerprints_cache()
 
-    def recordings_by_column(self,
-                             col: str) -> Tuple[List[np.ndarray], np.ndarray]:
+    def recordings_by_column(
+            self,
+            col: str) -> Tuple[List[np.ndarray], np.ndarray, Dict[str, int]]:
         """Returns audio fingerprint recordings grouped by metadata column."""
         ids_by_col = {
             label: set(self.meta_df.iloc[idx].name for idx in indices)
@@ -152,18 +127,21 @@ class MusicNet:
             for recording_id in ids:
                 recordings.append(self.fingerprints_by_id[str(recording_id)])
                 recording_label_ids.append(label_to_id[label])
-        return recordings, np.array(recording_label_ids)
+        return recordings, np.array(recording_label_ids), label_to_id
 
-    def chunks_by_column(self, col: str) -> Tuple[np.ndarray, np.ndarray]:
+    def chunks_by_column(
+            self, col: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, int]]:
         """Returns audio fingerprint chunks grouped by metadata column."""
         chunks = []
         chunk_label_ids = []
-        for (fingerprints, label_id) in zip(*self.recordings_by_column(col)):
+        recording_fingerprints, label_ids, label_to_id = self.recordings_by_column(
+            col)
+        for (fingerprints, label_id) in zip(recording_fingerprints, label_ids):
             recording_chunks = recording_to_chunks(fingerprints,
-                                                   self.intervals_per_chunk)
+                                                   self.samples_per_chunk)
             chunks += recording_chunks
             chunk_label_ids += [label_id] * len(recording_chunks)
-        return np.array(chunks), np.array(chunk_label_ids)
+        return np.array(chunks), np.array(chunk_label_ids), label_to_id
 
     def _preprocess_key(self):
         """Extracts (normalized) keys from metadata."""
@@ -201,11 +179,15 @@ class MusicNet:
         """Generates audio fingerprints."""
         logging.info('Generating audio fingerprints...')
         fingerprints_by_id = {}
+        fingerprint_indices = np.geomspace(
+            1, self.window_size // 2 + 1,
+            self.n_features).round().astype(int) - 1
         for key in tqdm(self.dataset):
-            fingerprints_by_id[key.split('id_')[1]] = audio_fingerprint(
-                audio=self.dataset[key]['data'][:],
-                sample_interval=self.sample_interval,
-                window_size=self.window_size)
+            _, _, audio_fingerprint = spectrogram(self.dataset[key]['data'][:],
+                                                  nperseg=self.window_size,
+                                                  noverlap=self.window_overlap)
+            fingerprints_by_id[key.split('id_')
+                               [1]] = audio_fingerprint[fingerprint_indices].T
         return fingerprints_by_id
 
     def _load_fingerprints_cache(self):

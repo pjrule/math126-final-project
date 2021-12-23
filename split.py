@@ -38,11 +38,13 @@ def train_test_split(
 
     Returns:
         A tuple containing a matrix of fingerprints and associated labels
-        in the order (training samples, training labels, test chunks or samples, test labels).
+        in the order (training samples, training labels, test chunks or
+        samples, test labels), plus a mapping of column values to numerical
+        IDs.
     """
     shuffle_rng = np.random.default_rng(random_state)
     if split_by == 'chunk':
-        chunks, chunk_labels = dataset.chunks_by_column(column)
+        chunks, chunk_labels, label_to_id = dataset.chunks_by_column(column)
         chunks_train, chunks_test, chunk_labels_train, chunk_labels_test = sk_split(
             chunks,
             chunk_labels,
@@ -51,7 +53,8 @@ def train_test_split(
         samples_train, sample_labels_train = chunks_to_samples(
             chunks_train, chunk_labels_train, shuffle=True, rng=shuffle_rng)
     elif split_by == 'recording':
-        recordings, recording_labels = dataset.recordings_by_column(column)
+        recordings, recording_labels, label_to_id = dataset.recordings_by_column(
+            column)
         recordings_train, recordings_test, recording_labels_train, recording_labels_test = sk_split(
             recordings,
             recording_labels,
@@ -61,14 +64,14 @@ def train_test_split(
         chunk_labels_train = []
         for recording, label in zip(recordings_train, recording_labels_train):
             recording_chunks = recording_to_chunks(recording,
-                                                   dataset.intervals_per_chunk)
+                                                   dataset.samples_per_chunk)
             chunks_train += recording_chunks
             chunk_labels_train += [label] * len(recording_chunks)
         chunks_test = []
         chunk_labels_test = []
         for recording, label in zip(recordings_test, recording_labels_test):
             recording_chunks = recording_to_chunks(recording,
-                                                   dataset.intervals_per_chunk)
+                                                   dataset.samples_per_chunk)
             chunks_test += recording_chunks
             chunk_labels_test += [label] * len(recording_chunks)
 
@@ -78,7 +81,7 @@ def train_test_split(
             shuffle=True,
             rng=shuffle_rng)
     elif split_by == 'sample':
-        chunks, chunk_labels = dataset.chunks_by_column(column)
+        chunks, chunk_labels, label_to_id = dataset.chunks_by_column(column)
         samples, sample_labels = chunks_to_samples(chunks,
                                                    chunk_labels,
                                                    shuffle=True,
@@ -91,4 +94,5 @@ def train_test_split(
         return samples_train, samples_test, sample_labels_train, sample_labels_test
     else:
         raise ValueError(f'Unsupported splitting mode "{split_by}".')
-    return samples_train, chunks_test, sample_labels_train, chunk_labels_test
+    return (samples_train, chunks_test, sample_labels_train, chunk_labels_test,
+            label_to_id)
