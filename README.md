@@ -33,7 +33,7 @@ python train.py --dataset-meta-path [path to MusicNet metadata CSV]
 Full usage details are available via `python train.py --help` and inline documentation.
 
 ### Training many models
-We trained all models in section 5.3 in parallel on the Tufts HPC cluster using `train.sh`, which generates asynchronous Slurm jobs. Model accuracy statistics are logged to `.err` files. `train.sh` takes no command-line parameters; all paths and parameters are set at the top of the file.
+We trained all models in section 5.3 in parallel on the Tufts HPC cluster using `train.sh`, which generates asynchronous Slurm jobs. Model accuracy statistics are logged to `.err` files. `train.sh` takes no command-line parameters; all paths and parameters are set at the top of the file. A Python environment with the appropriate dependencies must be activated before script execution.
 
 ### Code outline
 * `train.py`: CLI frontend for the training and evaluation pipeline.
