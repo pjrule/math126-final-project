@@ -1,4 +1,4 @@
-# Classification of Classical Music Performances with Dictionary Learning and Randomized LU Decomposition}
+# Classification of Classical Music Performances with Dictionary Learning and Randomized LU Decomposition
 _Parker Rule, Eric Zaks, Zoe Hsieh_
 
 This repository contains all code necessary for reproducing the results in our final project report for Tufts MATH126: Numerical Linear Algebra.
@@ -12,7 +12,7 @@ This repository contains all code necessary for reproducing the results in our f
 Experimental results in sections 5.1 and 5.2 were generated using largely self-contained JupyterLab notebooks.
 * `Shabat et al. 2013 (Algorithm 4.1).ipynb` [(also on Google Colab)](https://colab.research.google.com/drive/1BUvOfX_FOcEXaHXXu9T-Me7QnJFljFRd?usp=sharing): contains a randomized LU implementation (see also: `models/randomized_lu.py`) and timing experiments for section 5.1.
 
-* `Digits Classification Using Dictionaries.ipynb`: contains a randomized LU implementation (see also: `mode    ls/randomized_lu.py`) and MNIST classification experiments for section 5.3.
+* `Digits Classification Using Dictionaries.ipynb`: contains a randomized LU implementation (see also: `mode    ls/randomized_lu.py`) and MNIST classification experiments for section 5.2.
 
 ## Audio classification pipeline (section 5.3)
 Audio classification models can be trained and evaluated using `train.py`, e.g.
