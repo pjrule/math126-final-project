@@ -107,7 +107,7 @@ def main(dataset_path: Optional[str], dataset_meta_path: str,
     dataset = MusicNet(dataset_path=dataset_path,
                        dataset_meta_path=dataset_meta_path,
                        fingerprints_cache_path=fingerprints_cache_path)
-    samples_train, chunks_test, sample_labels_train, chunk_labels_test = train_test_split(
+    samples_train, chunks_test, sample_labels_train, chunk_labels_test, _ = train_test_split(
         dataset=dataset,
         column=column,
         split_by=split_by,
